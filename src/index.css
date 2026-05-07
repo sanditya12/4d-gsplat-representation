@@ -238,3 +238,68 @@ body {
   color: var(--text-primary);
   margin-bottom: 12px;
 }
+
+/* Stats Panel Styles */
+.stats-panel {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: rgba(15, 17, 21, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--text-color);
+  font-family: 'Space Mono', monospace, sans-serif;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 280px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.stat-label {
+  color: #8b949e;
+}
+
+.stat-value-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.dot-green {
+  background-color: #2ea043;
+  color: rgba(46, 160, 67, 0.6);
+}
+
+.dot-yellow {
+  background-color: #d29922;
+  color: rgba(210, 153, 34, 0.6);
+}
+
+.dot-red {
+  background-color: #f85149;
+  color: rgba(248, 81, 73, 0.6);
+}

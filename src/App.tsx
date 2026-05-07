@@ -1,11 +1,21 @@
 import { useState, useCallback, DragEvent } from 'react';
 import { Viewer3D } from './components/Viewer3D';
 import { Timeline, Session } from './components/Timeline';
+import { StatsPanel } from './components/StatsPanel';
 
 function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [networkPayloadMB, setNetworkPayloadMB] = useState(0);
+  const [activeMemoryMB, setActiveMemoryMB] = useState(0);
+  const [activeSplatsCount, setActiveSplatsCount] = useState(0);
+
+  const handleStatsUpdate = useCallback((payloadMB: number, memoryMB: number, splatsCount: number) => {
+    setNetworkPayloadMB(payloadMB);
+    setActiveMemoryMB(memoryMB);
+    setActiveSplatsCount(splatsCount);
+  }, []);
 
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -80,7 +90,17 @@ function App() {
         </div>
       )}
 
-      <Viewer3D sessionUrls={sessionUrls} activeSessionId={activeSessionId} />
+      <StatsPanel 
+        networkPayloadMB={networkPayloadMB} 
+        activeMemoryMB={activeMemoryMB} 
+        activeSplatsCount={activeSplatsCount} 
+      />
+
+      <Viewer3D 
+        sessionUrls={sessionUrls} 
+        activeSessionId={activeSessionId} 
+        onStatsUpdate={handleStatsUpdate}
+      />
       
       <Timeline 
         sessions={sessions} 

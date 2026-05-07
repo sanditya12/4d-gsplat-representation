@@ -6,9 +6,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 interface Viewer3DProps {
   sessionUrls: Record<string, string>;
   activeSessionId: string | null;
+  onStatsUpdate?: (payloadMB: number, memoryMB: number, splatsCount: number) => void;
 }
 
-export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId }) => {
+export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId, onStatsUpdate }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sparkRendererRef = useRef<SparkRenderer | null>(null);
@@ -18,6 +19,28 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId
   const animationFrameRef = useRef<number>(0);
   
   const splatsRef = useRef<Record<string, SplatMesh>>({});
+  const totalPayloadRef = useRef<number>(0);
+
+  // Stats update interval
+  useEffect(() => {
+    if (!onStatsUpdate) return;
+
+    const intervalId = setInterval(() => {
+      let totalVisibleSplats = 0;
+      
+      Object.values(splatsRef.current).forEach(splat => {
+        if (splat && splat.visible && splat.splats) {
+          totalVisibleSplats += splat.splats.getNumSplats();
+        }
+      });
+
+      // 32 bytes per splat as a baseline estimate for VRAM footprint
+      const memoryMB = (totalVisibleSplats * 32) / (1024 * 1024);
+      onStatsUpdate(totalPayloadRef.current, memoryMB, totalVisibleSplats);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [onStatsUpdate]);
 
   // Initialization
   useEffect(() => {
@@ -93,34 +116,51 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId
     Object.entries(sessionUrls).forEach(([id, url]) => {
       if (!splatsRef.current[id]) {
         console.log(`Loading splat for session ${id}: ${url}`);
-        const splat = new SplatMesh({ url });
         
-        // Wait for it to initialize before adding to scene and potentially hooking the renderer
-        splat.initialized.then(() => {
-          if (!mounted) return;
-          console.log(`Splat initialized for session ${id}`);
-          scene.add(splat);
-          
-          // Add spark renderer to scene if it's not already added
-          if (sparkRendererRef.current && !scene.children.includes(sparkRendererRef.current)) {
-             scene.add(sparkRendererRef.current);
+        // Instantiate first to prevent duplicate loading
+        const splat = new SplatMesh();
+        splatsRef.current[id] = splat;
+
+        // Use fetch to read Content-Length for network payload tracking
+        fetch(url).then(async (response) => {
+          const contentLength = response.headers.get('Content-Length');
+          if (contentLength) {
+            const bytes = parseInt(contentLength, 10);
+            totalPayloadRef.current += bytes / (1024 * 1024);
+          } else {
+            // Fallback for blob URLs without Content-Length
+            const blob = await response.clone().blob();
+            totalPayloadRef.current += blob.size / (1024 * 1024);
           }
-          
-          // Re-evaluate visibility
-          Object.entries(splatsRef.current).forEach(([sid, s]) => {
-            s.visible = sid === activeSessionId;
+
+          const fileBytes = await response.arrayBuffer();
+          if (!mounted) return;
+
+          // Initialize the splat with the fetched bytes
+          splat.asyncInitialize({ fileBytes }).then(() => {
+            if (!mounted) return;
+            console.log(`Splat initialized for session ${id}`);
+            scene.add(splat);
+            
+            // Add spark renderer to scene if it's not already added
+            if (sparkRendererRef.current && !scene.children.includes(sparkRendererRef.current)) {
+               scene.add(sparkRendererRef.current);
+            }
+            
+            // Re-evaluate visibility
+            Object.entries(splatsRef.current).forEach(([sid, s]) => {
+              if (s) s.visible = sid === activeSessionId;
+            });
           });
         }).catch((err) => {
           console.error(`Failed to load splat for session ${id}:`, err);
         });
-
-        splatsRef.current[id] = splat;
       }
     });
 
     // Simple visibility switch
     Object.entries(splatsRef.current).forEach(([id, splat]) => {
-      splat.visible = id === activeSessionId;
+      if (splat) splat.visible = id === activeSessionId;
     });
 
     return () => {
