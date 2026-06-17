@@ -33,10 +33,11 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId
           totalVisibleSplats += splat.splats.getNumSplats();
         }
       });
-
-      // 32 bytes per splat as a baseline estimate for VRAM footprint
-      const memoryMB = (totalVisibleSplats * 32) / (1024 * 1024);
-      onStatsUpdate(totalPayloadRef.current, memoryMB, totalVisibleSplats);
+      
+      // 32 bytes per splat/point as a baseline estimate for VRAM footprint
+      const totalElements = totalVisibleSplats;
+      const memoryMB = (totalElements * 32) / (1024 * 1024);
+      onStatsUpdate(totalPayloadRef.current, memoryMB, totalElements);
     }, 1000);
 
     return () => clearInterval(intervalId);
