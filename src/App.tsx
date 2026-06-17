@@ -10,6 +10,7 @@ function App() {
   const [networkPayloadMB, setNetworkPayloadMB] = useState(0);
   const [activeMemoryMB, setActiveMemoryMB] = useState(0);
   const [activeSplatsCount, setActiveSplatsCount] = useState(0);
+  const [displayMode, setDisplayMode] = useState(0);
 
   const handleStatsUpdate = useCallback((payloadMB: number, memoryMB: number, splatsCount: number) => {
     setNetworkPayloadMB(payloadMB);
@@ -68,7 +69,22 @@ function App() {
         <p className="ui-desc">
           Interactive prototype for visualizing a construction site over time using Gaussian Splatting.
         </p>
-        <p className="ui-desc" style={{ marginTop: '8px', color: 'var(--accent-color)' }}>
+        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 600 }}>SEMANTIC DISPLAY MODE</label>
+          <select 
+            value={displayMode} 
+            onChange={(e) => setDisplayMode(Number(e.target.value))}
+            style={{ 
+              background: '#1f2937', color: 'white', border: '1px solid #374151', 
+              padding: '8px', borderRadius: '4px', outline: 'none'
+            }}
+          >
+            <option value={0}>0: Default (Normal Rendering)</option>
+            <option value={1}>1: Highlight Target Object</option>
+            <option value={2}>2: Isolate Target Object</option>
+          </select>
+        </div>
+        <p className="ui-desc" style={{ marginTop: '16px', color: 'var(--accent-color)' }}>
           Left Click: Rotate <br />
           Right Click: Pan <br />
           Scroll: Zoom
@@ -100,6 +116,7 @@ function App() {
         sessionUrls={sessionUrls} 
         activeSessionId={activeSessionId} 
         onStatsUpdate={handleStatsUpdate}
+        displayMode={displayMode}
       />
       
       <Timeline 

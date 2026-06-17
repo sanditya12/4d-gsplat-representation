@@ -1,15 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { SplatMesh, SparkRenderer } from '@sparkjsdev/spark';
+import { SplatMesh, SparkRenderer, dyno } from '@sparkjsdev/spark';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { extractIsolatedObject } from '../utils/plyParser';
+import { makeSemanticModifier } from '../utils/semanticModifier';
 
 interface Viewer3DProps {
   sessionUrls: Record<string, string>;
   activeSessionId: string | null;
   onStatsUpdate?: (payloadMB: number, memoryMB: number, splatsCount: number) => void;
+  displayMode?: number;
 }
 
-export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId, onStatsUpdate }) => {
+export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId, onStatsUpdate, displayMode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sparkRendererRef = useRef<SparkRenderer | null>(null);
@@ -20,6 +23,17 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId
   
   const splatsRef = useRef<Record<string, SplatMesh>>({});
   const totalPayloadRef = useRef<number>(0);
+
+  const displayModeUniformRef = useRef<dyno.DynoInt<string> | null>(null);
+  if (!displayModeUniformRef.current) {
+    displayModeUniformRef.current = dyno.dynoInt(displayMode || 0, 'displayMode');
+  }
+
+  useEffect(() => {
+    if (displayModeUniformRef.current) {
+      displayModeUniformRef.current.value = displayMode || 0;
+    }
+  }, [displayMode]);
 
   // Stats update interval
   useEffect(() => {
@@ -136,6 +150,22 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({ sessionUrls, activeSessionId
 
           const fileBytes = await response.arrayBuffer();
           if (!mounted) return;
+
+          const semanticData = extractIsolatedObject(fileBytes);
+          if (semanticData && displayModeUniformRef.current) {
+            const width = Math.ceil(Math.sqrt(semanticData.length));
+            const height = Math.ceil(semanticData.length / width);
+            const paddedData = new Uint8Array(width * height);
+            paddedData.set(semanticData);
+            
+            const texture = new THREE.DataTexture(paddedData, width, height, THREE.RedIntegerFormat, THREE.UnsignedByteType);
+            texture.internalFormat = 'R8UI';
+            texture.needsUpdate = true;
+            
+            const semanticTexUniform = dyno.dynoUsampler2D(texture, 'semanticTex');
+            splat.objectModifiers = [makeSemanticModifier(semanticTexUniform, displayModeUniformRef.current)];
+            console.log(`Semantic metadata loaded and bound to shader for ${id}`);
+          }
 
           // Initialize the splat with the fetched bytes
           splat.asyncInitialize({ fileBytes }).then(() => {
